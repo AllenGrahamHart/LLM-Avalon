@@ -15,6 +15,7 @@ conversation_log.txt
 full_conversation_log.txt
 full_game_log.json
 public_game_log.json
+*.log
 
 # Virtual environments
 venv/

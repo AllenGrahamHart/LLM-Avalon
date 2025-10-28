@@ -60,9 +60,14 @@ def run_discussion_round(
 ):
     """Run a discussion round with all players speaking in order."""
 
-    # Write round header to conversation log
+    # Write round header to conversation logs
     with open(os.path.join(game.output_dir, "conversation_log.txt"), "a") as f:
         f.write(f"\n<ROUND>{round_number}</ROUND>\n")
+
+    with open(os.path.join(game.output_dir, "full_conversation_log.txt"), "a") as f:
+        f.write(f"\n\n{'#'*60}\n")
+        f.write(f"# ROUND {round_number}\n")
+        f.write(f"{'#'*60}\n")
 
     speaker_order = game.get_speaker_order()
 
@@ -92,6 +97,9 @@ def run_discussion_round(
 
             # Save only public message to conversation log
             interface.save_conversation_message(round_number, speaker, public_message)
+
+            # Save both private thoughts and public message to full conversation log
+            interface.save_full_conversation_message(round_number, speaker, response, public_message)
 
             print(f"{speaker}: {public_message}")
 

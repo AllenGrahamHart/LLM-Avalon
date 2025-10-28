@@ -120,6 +120,14 @@ class AvalonGame:
             f.write(f"Seating order: {', '.join(self.seating_order)}\n")
             f.write(f"Initial leader: {self.current_leader}\n\n")
 
+        # Initialize full conversation log (includes private thoughts)
+        with open(os.path.join(self.output_dir, "full_conversation_log.txt"), "w") as f:
+            f.write("=== AVALON GAME START - FULL CONVERSATION LOG ===\n\n")
+            f.write("This log includes both private thoughts and public messages from all players.\n")
+            f.write("Use this for analysis and debugging.\n\n")
+            f.write(f"Seating order: {', '.join(self.seating_order)}\n")
+            f.write(f"Initial leader: {self.current_leader}\n\n")
+
         # Initialize private thought files for each player
         for player in self.players:
             with open(os.path.join(self.output_dir, f"{player}_private_thoughts.txt"), "w") as f:

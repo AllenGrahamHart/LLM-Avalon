@@ -72,7 +72,8 @@ This keeps token usage manageable while providing sufficient context.
     └── game-YYYYMMDD-HHMMSS/           # Timestamped game directory
         ├── public_game_log.json         # Public information (visible to all)
         ├── full_game_log.json           # Complete information (includes roles)
-        ├── conversation_log.txt         # All public discussions
+        ├── conversation_log.txt         # Public discussion only
+        ├── full_conversation_log.txt    # Public + private thoughts per message
         └── Player*_private_thoughts.txt # Private reasoning per player
 ```
 
@@ -169,5 +170,6 @@ A typical 5-player game with 3-5 quest rounds costs approximately **$0.10-0.30**
 After running a game, check the `outputs/game-<timestamp>/` directory to see:
 - `public_game_log.json` - Game history visible to all players
 - `full_game_log.json` - Complete game history including roles and quest cards
-- `conversation_log.txt` - All player discussions
-- `Player*_private_thoughts.txt` - Each player's reasoning process
+- `conversation_log.txt` - Public messages only (what players see)
+- `full_conversation_log.txt` - Both private thoughts and public messages for each discussion turn
+- `Player*_private_thoughts.txt` - Each player's reasoning process (voting, quest cards, discussions)

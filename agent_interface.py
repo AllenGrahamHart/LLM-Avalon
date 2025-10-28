@@ -241,6 +241,18 @@ Your private thoughts:"""
         with open(os.path.join(self.output_dir, "conversation_log.txt"), "a") as f:
             f.write(f"\n{speaker}: {message}\n")
 
+    def save_full_conversation_message(self, round_number: int, speaker: str, full_response: str, public_message: str):
+        """Save the full response (including private thoughts) and public message to the full conversation log."""
+        with open(os.path.join(self.output_dir, "full_conversation_log.txt"), "a") as f:
+            f.write(f"\n{'='*60}\n")
+            f.write(f"{speaker} (Round {round_number}):\n")
+            f.write(f"{'='*60}\n\n")
+            f.write("FULL RESPONSE (including private thoughts):\n")
+            f.write(f"{full_response}\n\n")
+            f.write(f"{'-'*60}\n")
+            f.write("PUBLIC MESSAGE (what other players see):\n")
+            f.write(f"{public_message}\n")
+
     def save_private_thoughts(self, player: str, round_number: int, thoughts: str, phase: str = "vote"):
         """Save a player's private thoughts."""
         with open(os.path.join(self.output_dir, f"{player}_private_thoughts.txt"), "a") as f:

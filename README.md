@@ -157,10 +157,11 @@ A typical 5-player game with 3-5 quest rounds costs approximately **$0.10-0.30**
 - ✅ Quest card playing
 - ✅ Public and private game logs
 - ✅ Player private thoughts and memory
+- ✅ Assassination phase (Assassin identifies Merlin after good wins 3 quests)
+- ✅ XML-based message separation (private thoughts + public messages)
 
 **TODO:**
 - [ ] Implement leader's team proposal via LLM (currently uses placeholder: first N players)
-- [ ] Implement assassination phase (when good wins 3 quests, Assassin tries to identify Merlin)
 - [ ] Add optional roles (Percival, Morgana, Mordred, Oberon)
 - [ ] Add game replay/analysis tools
 - [ ] Improve agent reasoning and strategy

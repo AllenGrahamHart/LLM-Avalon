@@ -67,14 +67,18 @@ class AgentInterface:
         initial_knowledge: List[str],
         round_number: int,
         phase: str = "pre_proposal"
-    ) -> str:
-        """Build the prompt for a player during discussion phase."""
+    ) -> List[Dict]:
+        """Build the prompt for a player during discussion phase with caching support.
+
+        Returns list of content blocks with game rules marked for caching.
+        """
 
         public_log = self._load_public_log()
         private_thoughts = self._load_player_private_thoughts(player)
         current_conversation = self._load_current_conversation(round_number)
 
-        prompt = f"""You are playing The Resistance: Avalon, a game of hidden loyalty and social deduction.
+        # Build role-specific intro
+        role_intro = f"""You are playing The Resistance: Avalon, a game of hidden loyalty and social deduction.
 
 YOUR ROLE: {role}
 YOUR IDENTITY: {player}
@@ -83,20 +87,16 @@ YOUR IDENTITY: {player}
 
         # Add role-specific knowledge
         if role == "Merlin":
-            prompt += f"As Merlin, you know the evil players are: {', '.join(initial_knowledge)}\n"
-            prompt += "IMPORTANT: You must hide your identity! If the Assassin identifies you at the end, evil wins.\n\n"
+            role_intro += f"As Merlin, you know the evil players are: {', '.join(initial_knowledge)}\n"
+            role_intro += "IMPORTANT: You must hide your identity! If the Assassin identifies you at the end, evil wins.\n\n"
         elif role in ["Assassin", "Minion"]:
             if initial_knowledge:
-                prompt += f"You know your evil allies are: {', '.join(initial_knowledge)}\n\n"
+                role_intro += f"You know your evil allies are: {', '.join(initial_knowledge)}\n\n"
         elif role == "Loyal Servant":
-            prompt += "You do not have any special knowledge. You must use logic and discussion to identify evil players.\n\n"
+            role_intro += "You do not have any special knowledge. You must use logic and discussion to identify evil players.\n\n"
 
-        prompt += f"""GAME RULES (for reference):
-{self.game_rules}
-
----
-
-CURRENT GAME STATE:
+        # Build dynamic content
+        dynamic_content = f"""CURRENT GAME STATE:
 {json.dumps(public_log, indent=2)}
 
 ---
@@ -125,7 +125,22 @@ Your public message to the group here
 
 Your response:"""
 
-        return prompt
+        # Return structured content blocks with game rules cached
+        return [
+            {
+                "type": "text",
+                "text": role_intro
+            },
+            {
+                "type": "text",
+                "text": f"GAME RULES (for reference):\n{self.game_rules}",
+                "cache_control": {"type": "ephemeral"}
+            },
+            {
+                "type": "text",
+                "text": dynamic_content
+            }
+        ]
 
     def build_private_thoughts_prompt(
         self,
@@ -134,14 +149,14 @@ Your response:"""
         initial_knowledge: List[str],
         round_number: int,
         decision_type: str = "vote"  # "vote" or "quest_card"
-    ) -> str:
-        """Build the prompt for private thoughts and decision-making."""
+    ) -> List[Dict]:
+        """Build the prompt for private thoughts and decision-making with caching support."""
 
         public_log = self._load_public_log()
         private_thoughts = self._load_player_private_thoughts(player)
         current_conversation = self._load_current_conversation(round_number)
 
-        prompt = f"""You are playing The Resistance: Avalon.
+        role_intro = f"""You are playing The Resistance: Avalon.
 
 YOUR ROLE: {role}
 YOUR IDENTITY: {player}
@@ -150,12 +165,17 @@ YOUR IDENTITY: {player}
 
         # Add role-specific knowledge
         if role == "Merlin":
-            prompt += f"As Merlin, you know the evil players are: {', '.join(initial_knowledge)}\n\n"
+            role_intro += f"As Merlin, you know the evil players are: {', '.join(initial_knowledge)}\n\n"
         elif role in ["Assassin", "Minion"]:
             if initial_knowledge:
-                prompt += f"You know your evil allies are: {', '.join(initial_knowledge)}\n\n"
+                role_intro += f"You know your evil allies are: {', '.join(initial_knowledge)}\n\n"
 
-        prompt += f"""CURRENT GAME STATE:
+        # Game rules cached block (same for all decision prompts)
+        rules_block = f"GAME RULES (for reference):\n{self.game_rules}"
+
+        dynamic_content = f"""
+
+CURRENT GAME STATE:
 {json.dumps(public_log, indent=2)}
 
 ---
@@ -173,7 +193,7 @@ YOUR PRIVATE THOUGHTS FROM PREVIOUS ROUNDS:
 """
 
         if decision_type == "vote":
-            prompt += """Now you must make a PRIVATE decision about how to vote on the proposed team.
+            dynamic_content += """Now you must make a PRIVATE decision about how to vote on the proposed team.
 
 Write your reasoning about:
 1. Who are the minions and who is Merlin?
@@ -185,13 +205,13 @@ End your thoughts with your vote in XML tags:
 Your private thoughts:"""
 
         elif decision_type == "quest_card":
-            prompt += """You are on the quest team. Now you must PRIVATELY decide which quest card to play.
+            dynamic_content += """You are on the quest team. Now you must PRIVATELY decide which quest card to play.
 
 """
             if role in ["Assassin", "Minion"]:
-                prompt += """As an evil player, you can choose to:
+                dynamic_content += """As an evil player, you can choose to:
 - Play SUCCESS to maintain your cover
-- Play FAIL to sabotage the quest. 
+- Play FAIL to sabotage the quest.
 
 Consider:
 - Will sabotaging now reveal your identity?
@@ -199,30 +219,45 @@ Consider:
 - What will other players deduce from the outcome?
 """
             else:
-                prompt += """As a good player, you MUST play SUCCESS.
+                dynamic_content += """As a good player, you MUST play SUCCESS.
 """
 
-            prompt += """
+            dynamic_content += """
 Write your reasoning, then end with your decision in XML tags:
 <QUEST_CARD>success</QUEST_CARD> or <QUEST_CARD>fail</QUEST_CARD>
 
 Your private thoughts:"""
 
-        return prompt
+        # Return structured content blocks with game rules cached
+        return [
+            {
+                "type": "text",
+                "text": role_intro
+            },
+            {
+                "type": "text",
+                "text": rules_block,
+                "cache_control": {"type": "ephemeral"}
+            },
+            {
+                "type": "text",
+                "text": dynamic_content
+            }
+        ]
 
     def build_assassination_prompt(
         self,
         assassin: str,
         initial_knowledge: List[str],
         players: List[str]
-    ) -> str:
+    ) -> List[Dict]:
         """Build the prompt for the Assassin to identify and assassinate Merlin."""
 
         public_log = self._load_public_log()
         private_thoughts = self._load_player_private_thoughts(assassin)
         current_conversation = self._load_current_conversation("assassination")
 
-        prompt = f"""You are playing The Resistance: Avalon.
+        role_intro = f"""You are playing The Resistance: Avalon.
 
 YOUR ROLE: Assassin
 YOUR IDENTITY: {assassin}
@@ -235,6 +270,12 @@ GAME STATE:
 Good has won 3 quests! However, as the Assassin, you have one final chance to win the game for evil.
 
 You must now identify and assassinate Merlin. If you correctly identify Merlin, evil wins the game!
+"""
+
+        # Game rules cached block
+        rules_block = f"GAME RULES (for reference):\n{self.game_rules}"
+
+        dynamic_content = f"""
 
 {json.dumps(public_log, indent=2)}
 
@@ -259,7 +300,22 @@ Write your reasoning about who you believe is Merlin, then make your assassinati
 
 Your reasoning and decision:"""
 
-        return prompt
+        # Return structured content blocks with game rules cached
+        return [
+            {
+                "type": "text",
+                "text": role_intro
+            },
+            {
+                "type": "text",
+                "text": rules_block,
+                "cache_control": {"type": "ephemeral"}
+            },
+            {
+                "type": "text",
+                "text": dynamic_content
+            }
+        ]
 
     def parse_discussion_message(self, response: str) -> str:
         """Extract public message from discussion response."""

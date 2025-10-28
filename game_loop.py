@@ -31,14 +31,27 @@ class LLMAgent:
         # Using Claude 3 Haiku - the cheapest Anthropic model
         self.model = "claude-3-haiku-20240307"
 
-    def get_response(self, prompt: str) -> str:
-        """Get response from Claude API."""
+    def get_response(self, prompt: str = None, content_blocks: list = None) -> str:
+        """Get response from Claude API with optional prompt caching support.
+
+        Args:
+            prompt: Simple string prompt (legacy support)
+            content_blocks: List of content blocks with optional cache_control
+        """
         try:
+            # Use content blocks if provided, otherwise convert prompt to content blocks
+            if content_blocks:
+                message_content = content_blocks
+            elif prompt:
+                message_content = prompt
+            else:
+                raise ValueError("Must provide either prompt or content_blocks")
+
             message = self.client.messages.create(
                 model=self.model,
                 max_tokens=1024,
                 messages=[
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": message_content}
                 ]
             )
 
@@ -77,17 +90,17 @@ def run_discussion_round(
             # Get role info for this player
             role_info = game.get_player_role_info(speaker)
 
-            # Build prompt
-            prompt = interface.build_discussion_prompt(
+            # Build prompt with caching support
+            content_blocks = interface.build_discussion_prompt(
                 player=speaker,
                 role=role_info["role"],
                 initial_knowledge=role_info["knows_about"],
                 round_number=round_number
             )
 
-            # Get agent's response
+            # Get agent's response using cached content
             agent = agents[speaker]
-            response = agent.get_response(prompt)
+            response = agent.get_response(content_blocks=content_blocks)
 
             # Parse public message from response
             public_message = interface.parse_discussion_message(response)
@@ -122,8 +135,8 @@ def collect_votes(
     for player in game.players:
         role_info = game.get_player_role_info(player)
 
-        # Build private thoughts prompt
-        prompt = interface.build_private_thoughts_prompt(
+        # Build private thoughts prompt with caching
+        content_blocks = interface.build_private_thoughts_prompt(
             player=player,
             role=role_info["role"],
             initial_knowledge=role_info["knows_about"],
@@ -131,9 +144,9 @@ def collect_votes(
             decision_type="vote"
         )
 
-        # Get agent's private thoughts
+        # Get agent's private thoughts using cached content
         agent = agents[player]
-        response = agent.get_response(prompt)
+        response = agent.get_response(content_blocks=content_blocks)
 
         # Parse vote
         vote = interface.parse_vote(response)
@@ -165,8 +178,8 @@ def collect_quest_cards(
     for player in team_members:
         role_info = game.get_player_role_info(player)
 
-        # Build quest decision prompt
-        prompt = interface.build_private_thoughts_prompt(
+        # Build quest decision prompt with caching
+        content_blocks = interface.build_private_thoughts_prompt(
             player=player,
             role=role_info["role"],
             initial_knowledge=role_info["knows_about"],
@@ -174,9 +187,9 @@ def collect_quest_cards(
             decision_type="quest_card"
         )
 
-        # Get agent's decision
+        # Get agent's decision using cached content
         agent = agents[player]
-        response = agent.get_response(prompt)
+        response = agent.get_response(content_blocks=content_blocks)
 
         # Parse quest card
         card = interface.parse_quest_card(response)
@@ -342,8 +355,8 @@ def run_assassination_phase(
     for speaker in speaker_order:
         role_info = game.get_player_role_info(speaker)
 
-        # Build prompt for final discussion
-        prompt = interface.build_discussion_prompt(
+        # Build prompt for final discussion with caching
+        content_blocks = interface.build_discussion_prompt(
             player=speaker,
             role=role_info["role"],
             initial_knowledge=role_info["knows_about"],
@@ -351,15 +364,15 @@ def run_assassination_phase(
             phase="assassination"
         )
 
-        # Replace the standard prompt ending with assassination-specific one
-        prompt = prompt.replace(
+        # Modify the last block to add assassination-specific text
+        content_blocks[-1]["text"] = content_blocks[-1]["text"].replace(
             "It is now your turn to speak.",
             "FINAL DISCUSSION: Good has won 3 quests, but the Assassin will try to identify Merlin.\n\nIt is now your turn to speak."
         )
 
-        # Get agent's response
+        # Get agent's response using cached content
         agent = agents[speaker]
-        response = agent.get_response(prompt)
+        response = agent.get_response(content_blocks=content_blocks)
 
         # Parse public message from response
         public_message = interface.parse_discussion_message(response)
@@ -394,16 +407,16 @@ def run_assassination_phase(
     # Get Assassin's role info
     role_info = game.get_player_role_info(assassin)
 
-    # Build assassination prompt
-    prompt = interface.build_assassination_prompt(
+    # Build assassination prompt with caching
+    content_blocks = interface.build_assassination_prompt(
         assassin=assassin,
         initial_knowledge=role_info["knows_about"],
         players=game.players
     )
 
-    # Get Assassin's decision
+    # Get Assassin's decision using cached content
     agent = agents[assassin]
-    response = agent.get_response(prompt)
+    response = agent.get_response(content_blocks=content_blocks)
 
     # Parse assassination target
     target = interface.parse_assassination_target(response)

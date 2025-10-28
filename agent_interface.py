@@ -34,10 +34,17 @@ class AgentInterface:
                 return f.read()
         return ""
 
-    def _load_current_conversation(self, round_number: int) -> str:
+    def _load_current_conversation(self, round_number) -> str:
         """Load the current round's conversation so far."""
         with open(os.path.join(self.output_dir, "conversation_log.txt"), "r") as f:
             content = f.read()
+
+        # Special case for assassination phase
+        if round_number == "assassination":
+            assassination_marker = "<ASSASSINATION>"
+            if assassination_marker in content:
+                return content.split(assassination_marker)[-1].strip()
+            return ""
 
         # Extract just the current round's conversation
         round_marker = f"<ROUND>{round_number}</ROUND>"
@@ -203,6 +210,63 @@ Your private thoughts:"""
 
         return prompt
 
+    def build_assassination_prompt(
+        self,
+        assassin: str,
+        initial_knowledge: List[str],
+        players: List[str]
+    ) -> str:
+        """Build the prompt for the Assassin to identify and assassinate Merlin."""
+
+        public_log = self._load_public_log()
+        private_thoughts = self._load_player_private_thoughts(assassin)
+        current_conversation = self._load_current_conversation("assassination")
+
+        prompt = f"""You are playing The Resistance: Avalon.
+
+YOUR ROLE: Assassin
+YOUR IDENTITY: {assassin}
+
+You know your evil ally is: {', '.join(initial_knowledge)}
+
+---
+
+GAME STATE:
+Good has won 3 quests! However, as the Assassin, you have one final chance to win the game for evil.
+
+You must now identify and assassinate Merlin. If you correctly identify Merlin, evil wins the game!
+
+{json.dumps(public_log, indent=2)}
+
+---
+
+ASSASSINATION DISCUSSION:
+{current_conversation if current_conversation else "(No discussion yet)"}
+
+---
+
+YOUR PRIVATE THOUGHTS FROM THE GAME:
+{private_thoughts if private_thoughts else "(No previous thoughts)"}
+
+---
+
+Based on the entire game history, conversations, voting patterns, and quest outcomes,
+you must now decide who is most likely to be Merlin.
+
+Consider:
+1. Who seemed to have knowledge of evil players?
+2. Who voted suspiciously accurately?
+3. Who tried to guide the team selection?
+4. Who tried NOT to draw attention to themselves?
+
+Write your reasoning about who you believe is Merlin, then make your assassination choice in XML tags.
+
+<ASSASSINATE>PlayerName</ASSASSINATE>
+
+Your reasoning and decision:"""
+
+        return prompt
+
     def parse_discussion_message(self, response: str) -> str:
         """Extract public message from discussion response."""
         match = re.search(r'<MESSAGE>(.*?)</MESSAGE>', response, re.IGNORECASE | re.DOTALL)
@@ -235,6 +299,13 @@ Your private thoughts:"""
             # Parse comma-separated player names
             return [p.strip() for p in team_str.split(',')]
         return []
+
+    def parse_assassination_target(self, response: str) -> str:
+        """Extract assassination target from Assassin's response."""
+        match = re.search(r'<ASSASSINATE>(.*?)</ASSASSINATE>', response, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        return ""
 
     def save_conversation_message(self, round_number: int, speaker: str, message: str):
         """Save a message to the conversation log."""

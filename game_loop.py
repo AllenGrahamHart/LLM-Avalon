@@ -311,6 +311,128 @@ def run_quest_round(game: AvalonGame, interface: AgentInterface, agents: Dict[st
     return "continue"
 
 
+def run_assassination_phase(
+    game: AvalonGame,
+    interface: AgentInterface,
+    agents: Dict[str, LLMAgent]
+) -> str:
+    """Run the assassination phase where the Assassin tries to identify Merlin."""
+
+    print(f"\n{'='*60}")
+    print("=== ASSASSINATION PHASE ===")
+    print(f"{'='*60}\n")
+    print("Good has won 3 quests!")
+    print("The Assassin gets one chance to identify and assassinate Merlin.")
+    print("If they guess correctly, evil wins!\n")
+
+    # Write assassination header to conversation logs
+    with open(os.path.join(game.output_dir, "conversation_log.txt"), "a") as f:
+        f.write(f"\n<ASSASSINATION>\n")
+
+    with open(os.path.join(game.output_dir, "full_conversation_log.txt"), "a") as f:
+        f.write(f"\n\n{'#'*60}\n")
+        f.write(f"# ASSASSINATION PHASE\n")
+        f.write(f"{'#'*60}\n")
+
+    # Phase 1: Final discussion about who might be Merlin
+    print("=== FINAL DISCUSSION - WHO IS MERLIN? ===\n")
+
+    speaker_order = game.get_speaker_order()
+
+    for speaker in speaker_order:
+        role_info = game.get_player_role_info(speaker)
+
+        # Build prompt for final discussion
+        prompt = interface.build_discussion_prompt(
+            player=speaker,
+            role=role_info["role"],
+            initial_knowledge=role_info["knows_about"],
+            round_number="assassination",
+            phase="assassination"
+        )
+
+        # Replace the standard prompt ending with assassination-specific one
+        prompt = prompt.replace(
+            "It is now your turn to speak.",
+            "FINAL DISCUSSION: Good has won 3 quests, but the Assassin will try to identify Merlin.\n\nIt is now your turn to speak."
+        )
+
+        # Get agent's response
+        agent = agents[speaker]
+        response = agent.get_response(prompt)
+
+        # Parse public message from response
+        public_message = interface.parse_discussion_message(response)
+
+        # Save full response to player's private file
+        interface.save_private_thoughts(speaker, "assassination", response, phase="discussion")
+
+        # Save only public message to conversation log
+        interface.save_conversation_message("assassination", speaker, public_message)
+
+        # Save both to full conversation log
+        interface.save_full_conversation_message("assassination", speaker, response, public_message)
+
+        print(f"{speaker}: {public_message}")
+
+    # Phase 2: Assassin makes their choice
+    print(f"\n{'='*60}")
+    print("THE ASSASSIN CHOOSES...")
+    print(f"{'='*60}\n")
+
+    # Find the Assassin
+    assassin = None
+    for player, role in game.roles.items():
+        if role == "Assassin":
+            assassin = player
+            break
+
+    if not assassin:
+        print("ERROR: No Assassin found!")
+        return "good_wins"
+
+    # Get Assassin's role info
+    role_info = game.get_player_role_info(assassin)
+
+    # Build assassination prompt
+    prompt = interface.build_assassination_prompt(
+        assassin=assassin,
+        initial_knowledge=role_info["knows_about"],
+        players=game.players
+    )
+
+    # Get Assassin's decision
+    agent = agents[assassin]
+    response = agent.get_response(prompt)
+
+    # Parse assassination target
+    target = interface.parse_assassination_target(response)
+
+    # Save Assassin's reasoning
+    interface.save_private_thoughts(assassin, "assassination", response, phase="assassination_decision")
+
+    print(f"\nThe Assassin ({assassin}) has chosen to assassinate: {target}")
+
+    # Find who is actually Merlin
+    merlin = None
+    for player, role in game.roles.items():
+        if role == "Merlin":
+            merlin = player
+            break
+
+    print(f"\nMerlin was: {merlin}")
+
+    # Determine the result
+    if target == merlin:
+        print("\n🗡️  The Assassin correctly identified Merlin!")
+        print("EVIL WINS!")
+        return "evil_wins"
+    else:
+        print("\n✨ The Assassin failed to identify Merlin!")
+        print("GOOD WINS!")
+        return "good_wins"
+
+
 def main():
     """Run a full game of Avalon."""
 
@@ -354,14 +476,23 @@ def main():
     # Handle end game
     print(f"\n{'='*60}")
     if game_result == "good_wins_quests":
-        print("GOOD has won 3 quests!")
-        print("\n=== ASSASSINATION PHASE ===")
-        print("TODO: Implement assassination phase")
-        # TODO: Assassin tries to identify Merlin
+        # Run assassination phase
+        final_result = run_assassination_phase(game, interface, agents)
+        game_result = final_result
     elif game_result == "evil_wins":
         print("EVIL WINS!")
 
-    print(f"{'='*60}\n")
+    # Print final result
+    if game_result == "good_wins":
+        print(f"\n{'='*60}")
+        print("FINAL RESULT: GOOD WINS!")
+        print(f"{'='*60}")
+    elif game_result == "evil_wins":
+        print(f"\n{'='*60}")
+        print("FINAL RESULT: EVIL WINS!")
+        print(f"{'='*60}")
+
+    print(f"\n{'='*60}\n")
     print("Game complete! Check game logs for full details.")
 
 

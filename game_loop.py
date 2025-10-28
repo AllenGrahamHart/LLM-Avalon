@@ -84,15 +84,16 @@ def run_discussion_round(
             agent = agents[speaker]
             response = agent.get_response(prompt)
 
-            # Clean response (remove XML tags if present)
-            clean_response = response.replace("<VOTE>", "").replace("</VOTE>", "")
-            clean_response = clean_response.replace("<QUEST_CARD>", "").replace("</QUEST_CARD>", "")
-            clean_response = clean_response.strip()
+            # Parse public message from response
+            public_message = interface.parse_discussion_message(response)
 
-            # Save to conversation log
-            interface.save_conversation_message(round_number, speaker, clean_response)
+            # Save full response (including private thoughts) to player's private file
+            interface.save_private_thoughts(speaker, round_number, response, phase="discussion")
 
-            print(f"{speaker}: {clean_response}")
+            # Save only public message to conversation log
+            interface.save_conversation_message(round_number, speaker, public_message)
+
+            print(f"{speaker}: {public_message}")
 
 
 def collect_votes(

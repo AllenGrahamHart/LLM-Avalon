@@ -104,9 +104,19 @@ CURRENT CONVERSATION (Round {round_number}):
 
 ---
 
-It is now your turn to speak. Respond with what you want to say to the group.
+It is now your turn to speak.
 
-Your message:"""
+First, write any private thoughts or strategy considerations you want to keep to yourself.
+Then, write your public message to the group inside XML tags.
+
+Format:
+[Your private thoughts here - other players will NOT see this]
+
+<MESSAGE>
+Your public message to the group here
+</MESSAGE>
+
+Your response:"""
 
         return prompt
 
@@ -180,7 +190,6 @@ Consider:
 - Will sabotaging now reveal your identity?
 - Is it better to wait for a later quest?
 - What will other players deduce from the outcome?
-- Loyal servants of Author cannot sabotage quests
 """
             else:
                 prompt += """As a good player, you MUST play SUCCESS.
@@ -193,6 +202,14 @@ Write your reasoning, then end with your decision in XML tags:
 Your private thoughts:"""
 
         return prompt
+
+    def parse_discussion_message(self, response: str) -> str:
+        """Extract public message from discussion response."""
+        match = re.search(r'<MESSAGE>(.*?)</MESSAGE>', response, re.IGNORECASE | re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        # If no XML tags found, return the whole response (backward compatibility)
+        return response.strip()
 
     def parse_vote(self, response: str) -> str:
         """Extract vote from agent response."""

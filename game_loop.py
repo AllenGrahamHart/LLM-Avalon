@@ -208,7 +208,7 @@ def run_quest_round(game: AvalonGame, interface: AgentInterface, agents: Dict[st
 
     # Phase 1: Pre-proposal discussion
     print("=== PRE-PROPOSAL DISCUSSION ===\n")
-    run_discussion_round(game, interface, agents, round_number, num_turns=3)
+    run_discussion_round(game, interface, agents, round_number, num_turns=1)
 
     # Phase 2: Leader proposes team
     print(f"\n=== TEAM PROPOSAL ===\n")

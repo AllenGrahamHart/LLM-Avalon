@@ -253,12 +253,6 @@ YOUR PRIVATE THOUGHTS FROM THE GAME:
 Based on the entire game history, conversations, voting patterns, and quest outcomes,
 you must now decide who is most likely to be Merlin.
 
-Consider:
-1. Who seemed to have knowledge of evil players?
-2. Who voted suspiciously accurately?
-3. Who tried to guide the team selection?
-4. Who tried NOT to draw attention to themselves?
-
 Write your reasoning about who you believe is Merlin, then make your assassination choice in XML tags.
 
 <ASSASSINATE>PlayerName</ASSASSINATE>
@@ -314,13 +308,22 @@ Your reasoning and decision:"""
 
     def save_full_conversation_message(self, round_number: int, speaker: str, full_response: str, public_message: str):
         """Save the full response (including private thoughts) and public message to the full conversation log."""
+
+        # Extract private thoughts (everything before <MESSAGE> tag)
+        private_thoughts = full_response
+        message_match = re.search(r'<MESSAGE>', full_response, re.IGNORECASE)
+        if message_match:
+            private_thoughts = full_response[:message_match.start()].strip()
+
         with open(os.path.join(self.output_dir, "full_conversation_log.txt"), "a") as f:
             f.write(f"\n{'='*60}\n")
             f.write(f"{speaker} (Round {round_number}):\n")
             f.write(f"{'='*60}\n\n")
-            f.write("FULL RESPONSE (including private thoughts):\n")
-            f.write(f"{full_response}\n\n")
-            f.write(f"{'-'*60}\n")
+
+            if private_thoughts:
+                f.write("PRIVATE THOUGHTS:\n")
+                f.write(f"{private_thoughts}\n\n")
+
             f.write("PUBLIC MESSAGE (what other players see):\n")
             f.write(f"{public_message}\n")
 
